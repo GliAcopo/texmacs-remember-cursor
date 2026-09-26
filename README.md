@@ -7,11 +7,12 @@ Tested with TeXmacs 2.1.4 (Guile 3).
 
 ## Installation
 
-Copy (or symlink) the `remember-cursor` directory into your TeXmacs plugins
-directory and restart TeXmacs:
+Clone the repository, then copy (or symlink) the `remember-cursor` directory
+into your TeXmacs plugins directory and restart TeXmacs:
 
 ```sh
-ln -s "$PWD/remember-cursor" ~/.TeXmacs/plugins/remember-cursor
+git clone https://github.com/GliAcopo/texmacs-remember-cursor.git
+ln -s "$PWD/texmacs-remember-cursor/remember-cursor" ~/.TeXmacs/plugins/remember-cursor
 ```
 
 ## How it works
@@ -30,3 +31,12 @@ ln -s "$PWD/remember-cursor" ~/.TeXmacs/plugins/remember-cursor
   loads that stop to ask about an autosave file are left untouched.
 
 Set `remember-cursor-enabled?` to `#f` to turn the plugin off.
+
+## License
+
+Copyright (C) 2026 Jacopo Rizzuto.
+
+This program is free software: you can redistribute it and/or modify it under
+the terms of the GNU General Public License as published by the Free Software
+Foundation, either version 3 of the License, or (at your option) any later
+version. See [LICENSE](LICENSE).
