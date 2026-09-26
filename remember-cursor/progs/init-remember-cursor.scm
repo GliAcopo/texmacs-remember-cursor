@@ -23,8 +23,6 @@
 (define remember-cursor-table (make-ahash-table))
 (define remember-cursor-dirty? #f)
 (define remember-cursor-save-pending? #f)
-;; freshly loaded buffers whose saved position has not been restored yet
-(define remember-cursor-pending (make-ahash-table))
 
 (define (remember-cursor-file)
   (url-append "$TEXMACS_HOME_PATH" "system/remember-cursor.scm"))
@@ -102,11 +100,7 @@
   (remember-cursor-safe
     (with buffer (current-buffer)
       (when (and remember-cursor-enabled?
-                 (remember-cursor-buffer? buffer)
-                 ;; do not overwrite the stored position with the start of
-                 ;; the document before the restore had a chance to run
-                 (not (ahash-ref remember-cursor-pending
-                                 (remember-cursor-key buffer))))
+                 (remember-cursor-buffer? buffer))
         (and-with p (remember-cursor-relative-path)
           (let* ((key (remember-cursor-key buffer))
                  (old (ahash-ref remember-cursor-table key)))
@@ -115,14 +109,23 @@
               (set! remember-cursor-dirty? #t)
               (remember-cursor-schedule-save))))))))
 
+;; The bracket highlighting of the prog modes overloads notify-cursor-moved
+;; without calling former.  Load those modules first, so that the definition
+;; below is the most recent one and always runs, then hands over to them.
+(for (m '((prog prog-edit) (prog cpp-edit) (prog dot-edit)
+          (prog fortran-edit) (prog python-edit) (prog scheme-edit)))
+  (remember-cursor-safe (eval `(use-modules ,m) (current-module))))
+
 (tm-define (notify-cursor-moved status)
-  (former status)
-  (remember-cursor-record))
+  (remember-cursor-record)
+  (former status))
 
 (tm-define (buffer-close name)
   (remember-cursor-safe
-    (when (== name (current-buffer)) (remember-cursor-record))
-    (ahash-remove! remember-cursor-pending (remember-cursor-key name))
+    (when (and (current-buffer)
+               (== (remember-cursor-key name)
+                   (remember-cursor-key (current-buffer))))
+      (remember-cursor-record))
     (remember-cursor-save))
   (former name))
 
@@ -158,9 +161,9 @@
 (define (remember-cursor-restore buffer)
   (remember-cursor-safe
     (let ((key (remember-cursor-key buffer)))
-      (ahash-remove! remember-cursor-pending key)
       (and-with e (ahash-ref remember-cursor-table key)
-        (when (and remember-cursor-enabled? (== (current-buffer) buffer))
+        (when (and remember-cursor-enabled? (current-buffer)
+                   (== (remember-cursor-key (current-buffer)) key))
           (let* ((root (buffer-tree))
                  (r (tree->path root))
                  (p (cdr e)))
@@ -175,25 +178,22 @@
         (== (append (tree->path (buffer-tree)) p)
             (tree->path (buffer-tree) :start)))))
 
-(define (remember-cursor-after-load buffer)
-  (ahash-set! remember-cursor-pending (remember-cursor-key buffer) #t)
-  (delayed
-    (:idle 250)
-    (remember-cursor-restore buffer)))
-
 ;; Only buffers that did not exist before the call are restored: switching to
 ;; an already open buffer keeps its cursor.  When the autosave question is
-;; asked, loading continues asynchronously and nothing is restored.
+;; asked, loading continues asynchronously and nothing is restored.  The
+;; restore happens before control returns to the event loop, so that no
+;; movement at the start of the document can be recorded in the meantime.
 (tm-define (load-buffer-main name . opts)
-  (let* ((before (remember-cursor-safe (buffer-list)))
+  (let* ((before (remember-cursor-safe
+                   (map remember-cursor-key (buffer-list))))
          (result (apply former (cons name opts))))
     (remember-cursor-safe
       (with buffer (current-buffer)
         (when (and (not (in? :background opts))
                    (list? before)
                    (remember-cursor-buffer? buffer)
-                   (nin? buffer before))
-          (remember-cursor-after-load buffer))))
+                   (nin? (remember-cursor-key buffer) before))
+          (remember-cursor-restore buffer))))
     result))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -209,4 +209,4 @@
   (with buffer (current-buffer)
     (when (and (remember-cursor-buffer? buffer)
                (remember-cursor-at-start?))
-      (remember-cursor-after-load buffer))))
+      (remember-cursor-restore buffer))))
