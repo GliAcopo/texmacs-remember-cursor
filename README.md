@@ -32,6 +32,12 @@ ln -s "$PWD/texmacs-remember-cursor/remember-cursor" ~/.TeXmacs/plugins/remember
 
 Set `remember-cursor-enabled?` to `#f` to turn the plugin off.
 
+## Development
+
+This plugin was developed with the assistance of Claude Opus 5.5, an AI model
+by Anthropic, used through Claude Code. The design, the code and the tests
+were reviewed and verified by the author on TeXmacs 2.1.4.
+
 ## License
 
 Copyright (C) 2026 Jacopo Rizzuto.

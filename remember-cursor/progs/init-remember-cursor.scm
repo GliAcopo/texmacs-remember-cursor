@@ -5,6 +5,8 @@
 ;; the file is opened again, like Obsidian's remember-cursor-position.
 ;; State lives in $TEXMACS_HOME_PATH/system/remember-cursor.scm.
 ;;
+;; Developed with the assistance of Claude Opus 5.5 (Anthropic).
+;;
 ;; Copyright (C) 2026 Jacopo Rizzuto
 ;; This software is released under the GNU General Public License version 3
 ;; or any later version; see the LICENSE file in the repository.
