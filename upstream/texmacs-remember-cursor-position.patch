@@ -1,0 +1,709 @@
+From 57fa301c1e27ff41b92ee6562368fe9df8b528c5 Mon Sep 17 00:00:00 2001
+From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 15:55:16 +0200
+Subject: [PATCH 1/4] prog: call former in the notify-cursor-moved overloads
+
+The overloads used for bracket highlighting replaced notify-cursor-moved
+instead of extending it, so that no other code could react to cursor
+movements while "prog:highlight brackets" is on.
+---
+ TeXmacs/progs/prog/cpp-edit.scm     | 3 ++-
+ TeXmacs/progs/prog/dot-edit.scm     | 3 ++-
+ TeXmacs/progs/prog/fortran-edit.scm | 3 ++-
+ TeXmacs/progs/prog/prog-edit.scm    | 3 ++-
+ TeXmacs/progs/prog/python-edit.scm  | 3 ++-
+ TeXmacs/progs/prog/scheme-edit.scm  | 3 ++-
+ 6 files changed, 12 insertions(+), 6 deletions(-)
+
+diff --git a/TeXmacs/progs/prog/cpp-edit.scm b/TeXmacs/progs/prog/cpp-edit.scm
+index 684393d..ef691f1 100644
+--- a/TeXmacs/progs/prog/cpp-edit.scm
++++ b/TeXmacs/progs/prog/cpp-edit.scm
+@@ -37,4 +37,5 @@
+ (tm-define (notify-cursor-moved status)
+   (:require prog-highlight-brackets?)
+   (:mode in-prog-cpp?)
+-  (select-brackets-after-movement "([{" ")]}" "\\"))
++  (select-brackets-after-movement "([{" ")]}" "\\")
++  (former status))
+diff --git a/TeXmacs/progs/prog/dot-edit.scm b/TeXmacs/progs/prog/dot-edit.scm
+index 521ff76..ec9dd49 100644
+--- a/TeXmacs/progs/prog/dot-edit.scm
++++ b/TeXmacs/progs/prog/dot-edit.scm
+@@ -35,7 +35,8 @@
+ (tm-define (notify-cursor-moved status)
+   (:require prog-highlight-brackets?)
+   (:mode in-prog-dot?)
+-  (select-brackets-after-movement "([{" ")]}" "\\"))
++  (select-brackets-after-movement "([{" ")]}" "\\")
++  (former status))
+ 
+ (kbd-map
+   (:mode in-prog-dot?)
+diff --git a/TeXmacs/progs/prog/fortran-edit.scm b/TeXmacs/progs/prog/fortran-edit.scm
+index 0917c38..cb9ff40 100644
+--- a/TeXmacs/progs/prog/fortran-edit.scm
++++ b/TeXmacs/progs/prog/fortran-edit.scm
+@@ -58,7 +58,8 @@
+ (tm-define (notify-cursor-moved status)
+   (:require prog-highlight-brackets?)
+   (:mode in-prog-fortran?)
+-  (select-brackets-after-movement "([" ")]" "\\"))
++  (select-brackets-after-movement "([" ")]" "\\")
++  (former status))
+ 
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ ;; Preferences for syntax highlighting
+diff --git a/TeXmacs/progs/prog/prog-edit.scm b/TeXmacs/progs/prog/prog-edit.scm
+index 0eb88ee..1f06787 100644
+--- a/TeXmacs/progs/prog/prog-edit.scm
++++ b/TeXmacs/progs/prog/prog-edit.scm
+@@ -220,7 +220,8 @@
+   (:require prog-highlight-brackets?)
+   (:require (not (in-prog?)))
+   (if (nnull? (get-alt-selection "brackets"))
+-      (cancel-alt-selection "brackets")))
++      (cancel-alt-selection "brackets"))
++  (former status))
+ 
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ ;; Whitespace handling
+diff --git a/TeXmacs/progs/prog/python-edit.scm b/TeXmacs/progs/prog/python-edit.scm
+index 9904c56..88f9593 100644
+--- a/TeXmacs/progs/prog/python-edit.scm
++++ b/TeXmacs/progs/prog/python-edit.scm
+@@ -58,5 +58,6 @@
+ (tm-define (notify-cursor-moved status)
+   (:require prog-highlight-brackets?)
+   (:mode in-prog-python?)
+-  (select-brackets-after-movement "([{" ")]}" "\\"))
++  (select-brackets-after-movement "([{" ")]}" "\\")
++  (former status))
+ 
+diff --git a/TeXmacs/progs/prog/scheme-edit.scm b/TeXmacs/progs/prog/scheme-edit.scm
+index 4616436..1d966ed 100644
+--- a/TeXmacs/progs/prog/scheme-edit.scm
++++ b/TeXmacs/progs/prog/scheme-edit.scm
+@@ -168,7 +168,8 @@
+ (tm-define (notify-cursor-moved status)
+   (:require prog-highlight-brackets?)
+   (:mode in-prog-scheme?)
+-  (select-brackets-after-movement "([{" ")]}" "\\"))
++  (select-brackets-after-movement "([{" ")]}" "\\")
++  (former status))
+ 
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ ;; Preferences for syntax highlighting
+-- 
+2.53.0
+
+
+From 65c65b25b2bd51fff1441c67ad062dbed6dc9ac1 Mon Sep 17 00:00:00 2001
+From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 15:46:27 +0200
+Subject: [PATCH 2/4] files: remember the cursor position of each file
+
+Save the cursor position of every local file and restore it when the file
+is loaded again from disk. Positions are kept in
+$TEXMACS_HOME_PATH/system/cursor-positions.scm (at most 300 files), written
+3 seconds after the last cursor movement and when TeXmacs quits. If the
+file was modified elsewhere and the saved position is no longer valid, the
+cursor goes to the start of the deepest subtree that still exists.
+
+The feature can be turned off with the new "remember cursor position"
+preference (Edit > Preferences > Other, and Preferences > Other).
+---
+ .../progs/texmacs/menus/preferences-menu.scm  |   1 +
+ .../texmacs/menus/preferences-widgets.scm     |   3 +
+ TeXmacs/progs/texmacs/texmacs/tm-files.scm    | 114 +++++++++++++++++-
+ 3 files changed, 117 insertions(+), 1 deletion(-)
+
+diff --git a/TeXmacs/progs/texmacs/menus/preferences-menu.scm b/TeXmacs/progs/texmacs/menus/preferences-menu.scm
+index f780b26..2ce5750 100644
+--- a/TeXmacs/progs/texmacs/menus/preferences-menu.scm
++++ b/TeXmacs/progs/texmacs/menus/preferences-menu.scm
+@@ -242,6 +242,7 @@
+           ("300 s" "300")
+           ---
+           ("Disable" "0"))
++    (toggle ("Remember cursor position" "remember cursor position"))
+     (enum ("Bibtex command" "bibtex command")
+           "bibtex" "biber" "biblatex" "rubibtex" *)))
+ 
+diff --git a/TeXmacs/progs/texmacs/menus/preferences-widgets.scm b/TeXmacs/progs/texmacs/menus/preferences-widgets.scm
+index b55f6a0..442cd6e 100644
+--- a/TeXmacs/progs/texmacs/menus/preferences-widgets.scm
++++ b/TeXmacs/progs/texmacs/menus/preferences-widgets.scm
+@@ -757,6 +757,9 @@
+             '("5 sec" "30 sec" "120 sec" "300 sec" "Disable")
+             (get-pretty-preference "autosave")
+             "12em"))
++    (item (text "Remember cursor position:")
++      (toggle (set-boolean-preference "remember cursor position" answer)
++              (get-boolean-preference "remember cursor position")))
+     (item (text "Security:")
+       (enum (set-pretty-preference "security" answer)
+             '("Accept no scripts" "Prompt on scripts" "Accept all scripts")
+diff --git a/TeXmacs/progs/texmacs/texmacs/tm-files.scm b/TeXmacs/progs/texmacs/texmacs/tm-files.scm
+index 7e1ed81..28d07bf 100644
+--- a/TeXmacs/progs/texmacs/texmacs/tm-files.scm
++++ b/TeXmacs/progs/texmacs/texmacs/tm-files.scm
+@@ -457,6 +457,116 @@
+          (system (string-append (default-open) " "
+                                 (raw-quote (url->system u)))))))
+ 
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;; Remembering the cursor position in files
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++
++(define cursor-memory-max 300)
++(define cursor-memory-table #f) ; file name -> (time . cursor path in body)
++(define cursor-memory-modified? #f)
++
++(define (cursor-memory-on?)
++  (get-boolean-preference "remember cursor position"))
++
++(define (cursor-memory-file)
++  (url-append "$TEXMACS_HOME_PATH" "system/cursor-positions.scm"))
++
++(define (cursor-memory-buffer? name)
++  (and name (buffer-has-name? name)
++       (not (url-scratch? name))
++       (not (url-rooted-web? name))
++       (not (url-rooted-tmfs? name))))
++
++(define (cursor-memory-entry? e)
++  (and (pair? e) (string? (car e)) (pair? (cdr e)) (number? (cadr e))
++       (list? (cddr e)) (list-and (map integer? (cddr e)))))
++
++(define (cursor-memory)
++  (when (not cursor-memory-table)
++    (set! cursor-memory-table (make-ahash-table))
++    (with u (cursor-memory-file)
++      (when (url-exists? u)
++        (with l (catch #t (lambda () (load-object u)) (lambda args '()))
++          (when (list? l)
++            (for (e l)
++              (when (cursor-memory-entry? e)
++                (ahash-set! cursor-memory-table (car e) (cdr e)))))))))
++  cursor-memory-table)
++
++(define (cursor-memory-save)
++  (when cursor-memory-modified?
++    (let* ((l (ahash-table->list (cursor-memory)))
++           (s (sort l (lambda (a b) (> (cadr a) (cadr b)))))
++           (r (if (> (length s) cursor-memory-max)
++                  (sublist s 0 cursor-memory-max) s)))
++      (set! cursor-memory-modified? #f)
++      (catch #t (lambda () (save-object (cursor-memory-file) r)) noop))))
++
++(define (cursor-memory-body-path)
++  (let* ((r (tree->path (buffer-tree)))
++         (c (cursor-path)))
++    (and r c (list-starts? c r) (list-tail c (length r)))))
++
++(define (cursor-memory-record)
++  (with name (current-buffer)
++    (when (and (cursor-memory-on?) (cursor-memory-buffer? name))
++      (and-with p (cursor-memory-body-path)
++        (let* ((key (url->system name))
++               (old (ahash-ref (cursor-memory) key)))
++          (when (or (not old) (!= (cdr old) p))
++            (ahash-set! (cursor-memory) key (cons (current-time) p))
++            (when (not cursor-memory-modified?)
++              (set! cursor-memory-modified? #t)
++              (delayed
++                (:idle 3000)
++                (cursor-memory-save)))))))))
++
++(tm-define (notify-cursor-moved status)
++  (former status)
++  (cursor-memory-record))
++
++(on-exit
++  (catch #t
++    (lambda () (cursor-memory-record) (cursor-memory-save))
++    noop))
++
++(tm-define (cursor-memory-valid? t p)
++  (:synopsis "Is @p a valid cursor path inside the tree @t?")
++  (cond ((null? p) #f)
++        ((tree-atomic? t)
++         (and (null? (cdr p)) (<= 0 (car p) (string-length (tree->string t)))))
++        ((null? (cdr p)) (in? (car p) '(0 1)))
++        ((< -1 (car p) (tree-arity t))
++         (cursor-memory-valid? (tree-ref t (car p)) (cdr p)))
++        (else #f)))
++
++(tm-define (cursor-memory-subtree t p)
++  (:synopsis "Deepest subtree of @t along the (possibly outdated) path @p")
++  (and (pair? p) (tree-compound? t) (< -1 (car p) (tree-arity t))
++       (with u (tree-ref t (car p))
++         (or (cursor-memory-subtree u (cdr p)) u))))
++
++(define (cursor-memory-restore name)
++  (and-with e (ahash-ref (cursor-memory) (url->system name))
++    (when (and (current-buffer)
++               (== (url->system (current-buffer)) (url->system name)))
++      (let* ((body (buffer-tree))
++             (p (cdr e)))
++        (cond ((cursor-memory-valid? body p)
++               (go-to (append (tree->path body) p)))
++              ((cursor-memory-subtree body p)
++               => (lambda (t) (tree-go-to t :start))))))))
++
++(define (cursor-memory-notify-open name opts)
++  ;; restore before returning to the event loop, so that no cursor movement
++  ;; at the start of the document can be recorded in the meantime
++  (when (and (cursor-memory-on?) (cursor-memory-buffer? name)
++             (nin? :background opts))
++    (catch #t (lambda () (cursor-memory-restore name)) noop)))
++
++(define-preferences
++  ("remember cursor position" "on" noop))
++
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ ;; Loading buffers
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+@@ -485,7 +595,9 @@
+           ((url-exists? name)
+            (if (buffer-load name)
+                (set-message `(concat "Could not load " ,vname) "Load file")
+-               (load-buffer-open name opts)))
++               (begin
++                 (load-buffer-open name opts)
++                 (cursor-memory-notify-open name opts))))
+           (else
+             (with uname (if (string? name) (string->url name) name)
+               (buffer-set-body name '(document ""))
+-- 
+2.53.0
+
+
+From 8e459542bdadd01af479cacce32787cc4f5ebb1b Mon Sep 17 00:00:00 2001
+From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 15:46:27 +0200
+Subject: [PATCH 3/4] dic: translate "remember cursor position"
+
+---
+ TeXmacs/langs/natural/dic/english-bulgarian.scm  | 1 +
+ TeXmacs/langs/natural/dic/english-chinese.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-croatian.scm   | 1 +
+ TeXmacs/langs/natural/dic/english-czech.scm      | 1 +
+ TeXmacs/langs/natural/dic/english-danish.scm     | 1 +
+ TeXmacs/langs/natural/dic/english-dutch.scm      | 1 +
+ TeXmacs/langs/natural/dic/english-finnish.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-french.scm     | 1 +
+ TeXmacs/langs/natural/dic/english-german.scm     | 1 +
+ TeXmacs/langs/natural/dic/english-greek.scm      | 1 +
+ TeXmacs/langs/natural/dic/english-hungarian.scm  | 1 +
+ TeXmacs/langs/natural/dic/english-italian.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-japanese.scm   | 1 +
+ TeXmacs/langs/natural/dic/english-korean.scm     | 1 +
+ TeXmacs/langs/natural/dic/english-new.scm        | 1 +
+ TeXmacs/langs/natural/dic/english-polish.scm     | 1 +
+ TeXmacs/langs/natural/dic/english-portuguese.scm | 1 +
+ TeXmacs/langs/natural/dic/english-romanian.scm   | 1 +
+ TeXmacs/langs/natural/dic/english-russian.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-slovak.scm     | 1 +
+ TeXmacs/langs/natural/dic/english-slovene.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-spanish.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-swedish.scm    | 1 +
+ TeXmacs/langs/natural/dic/english-taiwanese.scm  | 1 +
+ TeXmacs/langs/natural/dic/english-ukrainian.scm  | 1 +
+ 25 files changed, 25 insertions(+)
+
+diff --git a/TeXmacs/langs/natural/dic/english-bulgarian.scm b/TeXmacs/langs/natural/dic/english-bulgarian.scm
+index c318a1a..1e20cce 100644
+--- a/TeXmacs/langs/natural/dic/english-bulgarian.scm
++++ b/TeXmacs/langs/natural/dic/english-bulgarian.scm
+@@ -950,6 +950,7 @@
+ ("release" "версия")
+ ("reload" "перезареди")
+ ("remark" "забележка")
++("remember cursor position" "запомняне на положението на курсора")
+ ("remove number" "премахни номера")
+ ("remove this switch" "премахни този превключвател")
+ ("renumber this page" "переномерирай тази страница")
+diff --git a/TeXmacs/langs/natural/dic/english-chinese.scm b/TeXmacs/langs/natural/dic/english-chinese.scm
+index f47b157..e4c7361 100644
+--- a/TeXmacs/langs/natural/dic/english-chinese.scm
++++ b/TeXmacs/langs/natural/dic/english-chinese.scm
+@@ -1455,6 +1455,7 @@
+ ("resize object" "")
+ ("resized" "")
+ ("rebuild translations file" "重建翻译文件")
++("remember cursor position" "记住游标位置")
+ ("retain" "保留")
+ ("retina settings" "高分屏设置")
+ ("retina screen settings" "高分屏设置")
+diff --git a/TeXmacs/langs/natural/dic/english-croatian.scm b/TeXmacs/langs/natural/dic/english-croatian.scm
+index 7721790..0158823 100644
+--- a/TeXmacs/langs/natural/dic/english-croatian.scm
++++ b/TeXmacs/langs/natural/dic/english-croatian.scm
+@@ -2365,6 +2365,7 @@
+ ("release left button: finish editing" "pu�tanje lijeve tipke: dovr�etak ure�ivanja")
+ ("reload" "ponovno u�itaj")
+ ("remark" "napomena")
++("remember cursor position" "zapamti polo�aj kursora")
+ ("remote" "udaljeno")
+ ("remote connections" "daljinske veze")
+ ("remote control" "daljinsko upravljanje")
+diff --git a/TeXmacs/langs/natural/dic/english-czech.scm b/TeXmacs/langs/natural/dic/english-czech.scm
+index 093343a..ca27f3a 100644
+--- a/TeXmacs/langs/natural/dic/english-czech.scm
++++ b/TeXmacs/langs/natural/dic/english-czech.scm
+@@ -951,6 +951,7 @@
+ ("release" "release")
+ ("reload" "znova nahr�t")
+ ("remark" "anotace")
++("remember cursor position" "pamatovat si pozici kurzoru")
+ ("remove number" "odebrat ��slo")
+ ("remove this switch" "odebrat p�ep�na�")
+ ("renumber this page" "znovu o��slovat tuto stranu")
+diff --git a/TeXmacs/langs/natural/dic/english-danish.scm b/TeXmacs/langs/natural/dic/english-danish.scm
+index d6e30a7..650c143 100644
+--- a/TeXmacs/langs/natural/dic/english-danish.scm
++++ b/TeXmacs/langs/natural/dic/english-danish.scm
+@@ -1442,6 +1442,7 @@
+ ("odd page right margin" "ulige sides h�jre margen")
+ ("odd page shift" "ulige sideskift")
+ ("reference guide" "manual")
++("remember cursor position" "husk mark�rens position")
+ ("remove package" "fjern pakke")
+ ("show hidden" "vis skjulte")
+ ("standard TeXmacs styles" "standard TeXmacs typografier")
+diff --git a/TeXmacs/langs/natural/dic/english-dutch.scm b/TeXmacs/langs/natural/dic/english-dutch.scm
+index 0619379..6b0b517 100644
+--- a/TeXmacs/langs/natural/dic/english-dutch.scm
++++ b/TeXmacs/langs/natural/dic/english-dutch.scm
+@@ -2371,6 +2371,7 @@ portemonnee met wachtzinnen zijn momenteel niet beschikbaar")
+ ("reload" "herlaad")
+ ("remark" "opmerking")
+ ("remarks" "opmerkingen")
++("remember cursor position" "cursorpositie onthouden")
+ ("remote" "op afstand")
+ ("remote connections" "externe verbindingen")
+ ("remote control" "afstandsbediening")
+diff --git a/TeXmacs/langs/natural/dic/english-finnish.scm b/TeXmacs/langs/natural/dic/english-finnish.scm
+index edf95c0..1f17759 100644
+--- a/TeXmacs/langs/natural/dic/english-finnish.scm
++++ b/TeXmacs/langs/natural/dic/english-finnish.scm
+@@ -932,6 +932,7 @@
+ ("release" "julkaisu")
+ ("reload" "lataa uudelleen")
+ ("remark" "huomautus")
++("remember cursor position" "muista kohdistimen sijainti")
+ ("remove this switch" "poista t�m� valitsin")
+ ("repeat object" "toista objekti")
+ ("replace" "korvaa")
+diff --git a/TeXmacs/langs/natural/dic/english-french.scm b/TeXmacs/langs/natural/dic/english-french.scm
+index a762424..1ed275b 100644
+--- a/TeXmacs/langs/natural/dic/english-french.scm
++++ b/TeXmacs/langs/natural/dic/english-french.scm
+@@ -2412,6 +2412,7 @@ clic droit : annuler")
+ ("reload" "recharger")
+ ("remark" "remarque")
+ ("remarks" "remarques")
++("remember cursor position" "m�moriser la position du curseur")
+ ("remote" "distant")
+ ("remote connections" "connexions � distance")
+ ("remote control" "commande � distance")
+diff --git a/TeXmacs/langs/natural/dic/english-german.scm b/TeXmacs/langs/natural/dic/english-german.scm
+index 726251d..a59ac43 100644
+--- a/TeXmacs/langs/natural/dic/english-german.scm
++++ b/TeXmacs/langs/natural/dic/english-german.scm
+@@ -1048,6 +1048,7 @@
+ ("release" "Version")
+ ("reload" "wieder laden")
+ ("remark" "Bemerkung")
++("remember cursor position" "Cursorposition merken")
+ ("remove all output fields" "entferne alle Ausgabe-Felder")
+ ("remove fields" "entferne Felder")
+ ("remove input field" "entferne Eingabe-Feld")
+diff --git a/TeXmacs/langs/natural/dic/english-greek.scm b/TeXmacs/langs/natural/dic/english-greek.scm
+index 0360bb7..8853b8f 100644
+--- a/TeXmacs/langs/natural/dic/english-greek.scm
++++ b/TeXmacs/langs/natural/dic/english-greek.scm
+@@ -2024,6 +2024,7 @@
+ ("release left button: finish editing" "απελευθέρωση αριστερού κουμπιού: τέλος επεξεργασίας")
+ ("reload" "επαναφόρτωση")
+ ("remark" "σχόλιο")
++("remember cursor position" "απομνημόνευση θέσης δρομέα")
+ ("remote" "απομακρυσμένη")
+ ("remote connections" "απομακρυσμένες συνδέσεις")
+ ("remote control" "τηλεχειρισμός")
+diff --git a/TeXmacs/langs/natural/dic/english-hungarian.scm b/TeXmacs/langs/natural/dic/english-hungarian.scm
+index 1ab8bdb..362130b 100644
+--- a/TeXmacs/langs/natural/dic/english-hungarian.scm
++++ b/TeXmacs/langs/natural/dic/english-hungarian.scm
+@@ -1196,6 +1196,7 @@ veg m
+ ("release" "")
+ ("reload" "�jrat�lt�s")
+ ("remark" "megjegyz�s")
++("remember cursor position" "kurzor poz�ci�j�nak megjegyz�se")
+ ("remote" "t�voli")
+ ("remote connections" "t�voli kapcsolatok")
+ ("remove" "elt�vol�t�s")
+diff --git a/TeXmacs/langs/natural/dic/english-italian.scm b/TeXmacs/langs/natural/dic/english-italian.scm
+index b3dea9d..673f3b2 100644
+--- a/TeXmacs/langs/natural/dic/english-italian.scm
++++ b/TeXmacs/langs/natural/dic/english-italian.scm
+@@ -2125,6 +2125,7 @@
+ ("release left button: finish editing" "rilascia pulsante sinistro: termina modifica")
+ ("reload" "ricarica")
+ ("remark" "osservazione")
++("remember cursor position" "ricorda la posizione del cursore")
+ ("remote" "remoto")
+ ("remote connections" "connessioni remote")
+ ("remote control" "telecomando")
+diff --git a/TeXmacs/langs/natural/dic/english-japanese.scm b/TeXmacs/langs/natural/dic/english-japanese.scm
+index 24a2b54..a4b2192 100644
+--- a/TeXmacs/langs/natural/dic/english-japanese.scm
++++ b/TeXmacs/langs/natural/dic/english-japanese.scm
+@@ -1051,6 +1051,7 @@
+ ("release" "")
+ ("reload" "")
+ ("remark" "注意")
++("remember cursor position" "カーソル位置を記憶")
+ ("remove all output fields" "")
+ ("remove fields" "")
+ ("remove input field" "")
+diff --git a/TeXmacs/langs/natural/dic/english-korean.scm b/TeXmacs/langs/natural/dic/english-korean.scm
+index 8d8eeff..123a312 100644
+--- a/TeXmacs/langs/natural/dic/english-korean.scm
++++ b/TeXmacs/langs/natural/dic/english-korean.scm
+@@ -1057,6 +1057,7 @@
+ ("release" "")
+ ("reload" "")
+ ("remark" "리마크")
++("remember cursor position" "커서 위치 기억")
+ ("remove all output fields" "")
+ ("remove fields" "")
+ ("remove input field" "")
+diff --git a/TeXmacs/langs/natural/dic/english-new.scm b/TeXmacs/langs/natural/dic/english-new.scm
+index 9ea9744..9b3b1d7 100644
+--- a/TeXmacs/langs/natural/dic/english-new.scm
++++ b/TeXmacs/langs/natural/dic/english-new.scm
+@@ -2355,6 +2355,7 @@
+ ("reload" "")
+ ("remark" "")
+ ("remarks" "")
++("remember cursor position" "")
+ ("remote" "")
+ ("remote connections" "")
+ ("remote control" "")
+diff --git a/TeXmacs/langs/natural/dic/english-polish.scm b/TeXmacs/langs/natural/dic/english-polish.scm
+index 25f7cc4..4313534 100644
+--- a/TeXmacs/langs/natural/dic/english-polish.scm
++++ b/TeXmacs/langs/natural/dic/english-polish.scm
+@@ -970,6 +970,7 @@
+ ("release" "wydanie")
+ ("reload" "prze�aduj")
+ ("remark" "uwaga")
++("remember cursor position" "zapami�tuj pozycj� kursora")
+ ("remove number" "usu� numer")
+ ("remove this switch" "usu� ten prze��cznik")
+ ("renumber this page" "zmie� numeracj� tej strony")
+diff --git a/TeXmacs/langs/natural/dic/english-portuguese.scm b/TeXmacs/langs/natural/dic/english-portuguese.scm
+index 557a640..4000b7e 100644
+--- a/TeXmacs/langs/natural/dic/english-portuguese.scm
++++ b/TeXmacs/langs/natural/dic/english-portuguese.scm
+@@ -943,6 +943,7 @@
+ ("release" "release")
+ ("reload" "recarregar")
+ ("remark" "coment�rio")
++("remember cursor position" "lembrar a posi��o do cursor")
+ ("remove number" "remover n�mera��o")
+ ("renumber this page" "renumerar esta p�gina")
+ ("repeat object" "repetir objeto")
+diff --git a/TeXmacs/langs/natural/dic/english-romanian.scm b/TeXmacs/langs/natural/dic/english-romanian.scm
+index a0ae032..789caf1 100644
+--- a/TeXmacs/langs/natural/dic/english-romanian.scm
++++ b/TeXmacs/langs/natural/dic/english-romanian.scm
+@@ -953,6 +953,7 @@
+ ("release" "versiune")
+ ("reload" "re�nc�rcare")
+ ("remark" "observa�ie")
++("remember cursor position" "memoreaz� pozi�ia cursorului")
+ ("remove number" "�tergere num�r")
+ ("remove this switch" "�terge acest switch")
+ ("renumber this page" "renumeroteaz� aceast� pagin�")
+diff --git a/TeXmacs/langs/natural/dic/english-russian.scm b/TeXmacs/langs/natural/dic/english-russian.scm
+index c59fbb8..ddcfd64 100644
+--- a/TeXmacs/langs/natural/dic/english-russian.scm
++++ b/TeXmacs/langs/natural/dic/english-russian.scm
+@@ -1045,6 +1045,7 @@
+ ("release" "версия")
+ ("reload" "перезагрузить")
+ ("remark" "замечание")
++("remember cursor position" "запоминать положение курсора")
+ ("remove all output fields" "удалить все поля вывода")
+ ("remove fields" "удалить поля")
+ ("remove input field" "удалить поле ввода")
+diff --git a/TeXmacs/langs/natural/dic/english-slovak.scm b/TeXmacs/langs/natural/dic/english-slovak.scm
+index 1076659..80b2552 100644
+--- a/TeXmacs/langs/natural/dic/english-slovak.scm
++++ b/TeXmacs/langs/natural/dic/english-slovak.scm
+@@ -2331,6 +2331,7 @@
+ ("reload" "znovu načítať")
+ ("remark" "poznámka")
+ ("remarks" "poznámky")
++("remember cursor position" "pamätať si polohu kurzora")
+ ("remote" "vzdialené")
+ ("remote connections" "vzdialené spojenia")
+ ("remote control" "vzdialené ovládanie")
+diff --git a/TeXmacs/langs/natural/dic/english-slovene.scm b/TeXmacs/langs/natural/dic/english-slovene.scm
+index 6e6c260..cae06b2 100644
+--- a/TeXmacs/langs/natural/dic/english-slovene.scm
++++ b/TeXmacs/langs/natural/dic/english-slovene.scm
+@@ -1059,6 +1059,7 @@
+ ("release" "release")
+ ("reload" "ponovno nalo�i")
+ ("remark" "opomba")
++("remember cursor position" "zapomni si polo�aj kazalke")
+ ("remove all output fields" "odstrani vsa izhodna polja")
+ ("remove all output fields" "odstrani vsa vnosna polja")
+ ("remove fields" "odstrani polja")
+diff --git a/TeXmacs/langs/natural/dic/english-spanish.scm b/TeXmacs/langs/natural/dic/english-spanish.scm
+index 4745a92..138c4c6 100644
+--- a/TeXmacs/langs/natural/dic/english-spanish.scm
++++ b/TeXmacs/langs/natural/dic/english-spanish.scm
+@@ -1419,3 +1419,4 @@
+ ("roman" "roman")
+ ("use calligraphic font" "utilizar tipo caligr�fico")
+ ("more information about GNU TeXmacs can be found in the Help" "Puedes encontrar m�s informaci�n sobre GNU TeXmacs en la ayuda")
++("remember cursor position" "recordar la posici�n del cursor")
+diff --git a/TeXmacs/langs/natural/dic/english-swedish.scm b/TeXmacs/langs/natural/dic/english-swedish.scm
+index 669c61e..55c9a40 100644
+--- a/TeXmacs/langs/natural/dic/english-swedish.scm
++++ b/TeXmacs/langs/natural/dic/english-swedish.scm
+@@ -507,6 +507,7 @@
+ ("references" "referenser")
+ ("release" "version")
+ ("remark" "kommentar")
++("remember cursor position" "kom ih�g mark�rens position")
+ ("reset" "reset")
+ ("resize object" "�ndra objektets storlek")
+ ("resized" "f�r�ndrad storlek")
+diff --git a/TeXmacs/langs/natural/dic/english-taiwanese.scm b/TeXmacs/langs/natural/dic/english-taiwanese.scm
+index 649ef82..9100550 100644
+--- a/TeXmacs/langs/natural/dic/english-taiwanese.scm
++++ b/TeXmacs/langs/natural/dic/english-taiwanese.scm
+@@ -1404,6 +1404,7 @@ TeXmacs 的資料可參考 Help 說明")
+ ("search results for" "")
+ ("search toolbar" "搜索工具列")
+ ("rebuild translations file" "重建翻譯文件")
++("remember cursor position" "記住游標位置")
+ ("retain" "保留")
+ ("return" "")
+ ("revert" "恢復")
+diff --git a/TeXmacs/langs/natural/dic/english-ukrainian.scm b/TeXmacs/langs/natural/dic/english-ukrainian.scm
+index 652007c..226dd6a 100644
+--- a/TeXmacs/langs/natural/dic/english-ukrainian.scm
++++ b/TeXmacs/langs/natural/dic/english-ukrainian.scm
+@@ -3620,3 +3620,4 @@
+ ("zoom out" "зменшити масштаб")
+ ("conjecture" "гіпотеза")
+ ("macro editor" "редактор макросів")
++("remember cursor position" "запам'ятовувати позицію курсора")
+-- 
+2.53.0
+
+
+From 08420be8143beedc177172e7fdf7fb2dc2b41b2e Mon Sep 17 00:00:00 2001
+From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
+Date: Sat, 26 Sep 2026 15:46:27 +0200
+Subject: [PATCH 4/4] check: add regression tests for remembering cursor
+ positions
+
+Test the validation of saved cursor paths and the fallback for outdated
+paths (regtest-cursor-memory, run by run-all-tests).
+---
+ TeXmacs/progs/check/check-master.scm          |  2 +
+ .../progs/texmacs/texmacs/tm-files-test.scm   | 53 +++++++++++++++++++
+ 2 files changed, 55 insertions(+)
+ create mode 100644 TeXmacs/progs/texmacs/texmacs/tm-files-test.scm
+
+diff --git a/TeXmacs/progs/check/check-master.scm b/TeXmacs/progs/check/check-master.scm
+index e1c4504..5af6ca2 100644
+--- a/TeXmacs/progs/check/check-master.scm
++++ b/TeXmacs/progs/check/check-master.scm
+@@ -15,6 +15,7 @@
+ (texmacs-module (check check-master)
+   (:use (convert html htmltm-test)
+         (convert html tmhtml-test)
++        (texmacs texmacs tm-files-test)
+         (convert tools xmltm-test)
+         (convert tools tmlength-test)
+         (convert tools environment-test)
+@@ -86,6 +87,7 @@
+   (regtest-tmlength)
+   (regtest-environment)
+   (regtest-mathtm)
++  (regtest-cursor-memory)
+   (regtest-tmhtml)
+   (regtest-tmmltm)
+   (regtest-prog-format)
+diff --git a/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm b/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm
+new file mode 100644
+index 0000000..f1d87ae
+--- /dev/null
++++ b/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm
+@@ -0,0 +1,53 @@
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++;;
++;; MODULE      : tm-files-test.scm
++;; DESCRIPTION : Test suite for remembering cursor positions in files
++;; COPYRIGHT   : (C) 2026  Jacopo Rizzuto
++;;
++;; This software falls under the GNU general public license version 3 or later.
++;; It comes WITHOUT ANY WARRANTY WHATSOEVER. For details, see the file LICENSE
++;; in the root directory or <http://www.gnu.org/licenses/gpl-3.0.html>.
++;;
++;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
++
++(texmacs-module (texmacs texmacs tm-files-test)
++  (:use (texmacs texmacs tm-files)))
++
++(define (test-doc)
++  (stree->tree '(document "abc" (strong "de"))))
++
++(define (valid-in-test-doc p)
++  (cursor-memory-valid? (test-doc) p))
++
++(define (subtree-in-test-doc p)
++  (with t (cursor-memory-subtree (test-doc) p)
++    (and t (tree->stree t))))
++
++(define (regtest-cursor-memory-valid)
++  (regression-test-group
++   "valid cursor paths" "cursor-memory-valid"
++   valid-in-test-doc :none
++   (test "inside a string" '(0 2) #t)
++   (test "end of a string" '(0 3) #t)
++   (test "beyond a string" '(0 4) #f)
++   (test "inside a nested string" '(1 0 1) #t)
++   (test "after a compound tree" '(1 1) #t)
++   (test "invalid compound position" '(1 2) #f)
++   (test "missing paragraph" '(2 0) #f)
++   (test "negative index" '(-1 0) #f)
++   (test "empty path" '() #f)))
++
++(define (regtest-cursor-memory-subtree)
++  (regression-test-group
++   "subtrees along outdated paths" "cursor-memory-subtree"
++   subtree-in-test-doc :none
++   (test "outdated string position" '(0 9) "abc")
++   (test "outdated nested position" '(1 0 7) "de")
++   (test "missing paragraph" '(5 0) #f)
++   (test "empty path" '() #f)))
++
++(tm-define (regtest-cursor-memory)
++  (let ((n (+ (regtest-cursor-memory-valid)
++              (regtest-cursor-memory-subtree))))
++    (display* "Total: " (object->string n) " tests.\n")
++    (display "Test suite of cursor-memory: ok\n")))
+-- 
+2.53.0
+

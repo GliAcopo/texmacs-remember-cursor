@@ -1,0 +1,17 @@
+# TeXmacs trunk, svn_mirror 148ed74 ("add widgets for using LanguageTool"), CMake build, embedded Guile 1.8, Qt5
+# patched with texmacs-remember-cursor-position.patch; ./test-cursor-memory.sh
+PASS  position saved 3 s after cursor movement
+PASS  restored when opened from the command line
+PASS  restored when opened with load-buffer
+PASS  position saved when quitting at once
+PASS  switching to an open buffer keeps its cursor
+PASS  scratch buffers are not recorded
+PASS  preference off: nothing restored
+PASS  preference off: nothing recorded
+PASS  shortened paragraph: start of the paragraph
+PASS  truncated file: start of the document
+PASS  corrupt state file is ignored
+PASS  recorded with bracket highlighting on
+PASS  regtest-cursor-memory
+
+All tests passed.

@@ -1,0 +1,287 @@
+Test group: htmltm, grouping markup [grouping]
+  -- div
+  -- span
+Test group: htmltm, heading markup [headings]
+  -- h1
+  -- h2
+  -- h3
+  -- h4
+  -- h5
+  -- h6
+Test group: htmltm, address and text direction [address-bdo]
+  -- address
+  -- bdo
+Test group: htmltm, phrase markup [phrase]
+  -- em
+  -- strong
+  -- cite
+  -- dfn
+  -- code
+  -- samp
+  -- kbd
+  -- var
+  -- abbr
+  -- acronym
+Test group: htmltm, quotation markup [quotation]
+  -- blockquote, empty
+  -- blockquote, one para
+  -- blockquote, two paras
+  -- inline quote
+Test group: htmltm, subscripts and superscripts [subsuper]
+  -- superscript
+  -- subscript
+Test group: htmltm, lines and paragraphs [para]
+  -- p, empty
+  -- two p, empty
+  -- p, text
+  -- p text, p empty, p text
+  -- br
+  -- br in p
+Test group: htmltm, preformatted text [pre]
+  -- empty
+  -- empty, newlines
+  -- one line
+  -- one line, whitespace
+  -- one line, newlines
+  -- two lines
+  -- two lines, whitespace
+  -- two lines, newlines
+  -- two lines, newlines, trailing white line (non-standard)
+  -- inline tags
+  -- inline tags, newlines
+Test group: htmltm, document changes [changes]
+Test group: htmltm, lists items [list-items]
+  -- empty list
+  -- one empty item
+  -- two empty items
+  -- one item inline
+  -- one item, id, inline
+  -- one item one p
+  -- one item two p
+  -- one item, inline and p
+  -- one item, inline and p with structure
+  -- two items, inline
+  -- two items, blocks
+Test group: htmltm, definition lists [list-definition]
+  -- empty list
+  -- empty dt
+  -- empty dd
+  -- empty dt, dd
+  -- empty dd, dt
+  -- empty dt, dt, dd, dd
+  -- dt, dt, dd, dd with text
+Test group: htmltm, other kinds of lists [list-kinds]
+  -- enumeration
+Test group: htmltm, ignore BR in lists (invalid structure) [list-br]
+  -- ul/br
+  -- ul/li/br
+  -- html/ul/br
+  -- html/ul/li/br
+Test group: htmltm, links [links]
+  -- name
+  -- id
+  -- href
+  -- name and href
+  -- id and href
+  -- id, name and href
+Test group: htmltm, object images and applets [objects]
+  -- img
+  -- img, px px
+  -- img, %
+Test group: htmltm, alignment [alignment]
+Test group: htmltm, font style [style]
+Test group: htmltm, font modifiers [font]
+Test group: htmltm, horizontal rules [rules]
+Test group: htmltm, frames [frames]
+Test group: htmltm, forms [forms]
+Test group: htmltm, scripting [scripting]
+Test group: htmltm, extra features of handlers [handlers]
+  -- mixed space
+  -- text in element content
+Test group: htmltm, trimming converted nodes [trimming]
+  -- block after
+  -- block before
+  -- blocks across
+  -- white inlines between blocks
+  -- block after, label
+  -- block before, label
+  -- blocks across, labels
+  -- block after, padded label
+  -- block before, padded label
+  -- blocks across, padded labels
+  -- newline after
+  -- newline before
+  -- newlines across
+  -- newline in list
+  -- newline after, label
+  -- newline before, label
+  -- newlines across, labels
+  -- newline after, padded label
+  -- newline before, padded label
+  -- newlines across, padded labels
+Test group: htmltm, conversion of id attributes [ids]
+  -- string
+  -- concat
+  -- document
+  -- with document
+  -- itemize 1
+  -- itemize 2
+  -- description
+  -- section
+  -- section 2
+  -- implicit expand document
+  -- otherwise
+Test group: htmltm, escaping less and gtr [less-gtr]
+  -- string node
+  -- tag with id
+  -- anchor with id
+  -- anchor with name
+  -- anchor with href
+  -- image source
+Test group: htmltm, backquote [backquote]
+  -- text node
+  -- element
+  -- href element
+  -- img element
+  -- anchor element
+  -- id attribute
+  -- url encoding error 1
+  -- url encoding error 2
+  -- url encoding error 3
+  -- url encoding error 4
+Total: 124 tests.
+Test group: internal html/xml parser [parser]
+  -- null string
+  -- text
+  -- element
+  -- attributes
+  -- element, text
+  -- element, padded text
+  -- element, element and text
+  -- processing instruction
+  -- empty PI
+  -- null PI
+  -- doctype
+  -- implicit /p
+  -- implicit /li
+  -- implici /dt /dd
+  -- implicit table tags
+  -- XML, UTF-8
+  -- HTML, UTF-8
+Test group: namespace-aware parser wrapper [xmlns]
+  -- null string
+  -- text
+  -- element
+  -- nested element
+  -- xmlns:foo
+  -- xmlns 2
+  -- xmlns=''
+  -- xmlns:foo, xmlns:bar
+  -- attr, ns-less
+  -- attr, ns, prefixless
+  -- attr, ns, prefixed
+Test group: integration of namespace layer with html parser [htmlns]
+  -- enum attribute
+Test group: htmltm, fast serial constructor [serial-fast]
+  -- empty
+  -- zero-concat
+  -- string
+  -- two strings
+  -- two concat strings
+  -- label
+  -- null-string label null-string
+  -- string label string
+  -- label string label
+  -- zero-document
+  -- two documents
+  -- text, doc
+  -- doc, text
+  -- doc, zero-concat, doc
+  -- text, zero-document, text
+Total: 44 tests.
+Test group: tmlength tools [tmlength]
+  -- null length
+  -- zero length
+  -- implicit zero
+  -- decimal length
+  -- negative length
+  -- negative^2 length
+Total: 6tests.
+Test group: environment basic tools [env-base]
+  -- simple
+  -- nested
+  -- never bound
+  -- unbound
+Total: 4 tests.
+Test group: mathtm [mathtm]
+  -- identifier
+  -- operator
+  -- numeral
+Test group: valid cursor paths [cursor-memory-valid]
+  -- inside a string
+  -- end of a string
+  -- beyond a string
+  -- inside a nested string
+  -- after a compound tree
+  -- invalid compound position
+  -- missing paragraph
+  -- negative index
+  -- empty path
+Test group: subtrees along outdated paths [cursor-memory-subtree]
+  -- outdated string position
+  -- outdated nested position
+  -- missing paragraph
+  -- empty path
+Total: 13 tests.
+Test suite of cursor-memory: ok
+Test group: tmhtml, basic features [basic]
+  -- string
+  -- document, empty
+  -- document, one string
+  -- document, two strings
+  -- para, empty
+  -- para, string
+  -- para, two strings
+  -- document, para, strings
+  -- concat, empty
+  -- concat, one string
+  -- concat, two strings
+  -- para, concat
+Test group: tmhtml, format nodes [format]
+  -- line break
+  -- new line
+  -- next line
+Test group: tmhtml, general 'with' handler [with]
+  -- typewriter
+  -- bold
+  -- italic
+  -- composite with
+Test group: tmhtml, misc features [extra]
+  -- label
+  -- hlink
+  -- hlink, concat, em
+  -- specific, LaTeX (ignored)
+  -- specific, HTML (included)
+Test group: tmhtml, logical markup, basic [logical]
+  -- strong
+  -- em
+  -- dfn
+  -- code*
+  -- samp
+  -- kbd
+  -- var
+  -- abbr
+  -- acronym
+  -- tt
+  -- em, concat
+  -- with, em
+  -- em, with
+Test group: tmhtml, verbatim [verbatim]
+  -- inline verbatim
+  -- one-line block verbatim
+  -- multiline block verbatim
+  -- verbatim line
+  -- vicious nesting
+Test group: tmhtml, pictures [image]
+  -- simple link
+Regression failure: image / simple linkRUN-ALL-ERROR (Regression failure: image simple link)

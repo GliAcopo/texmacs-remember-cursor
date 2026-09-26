@@ -1,0 +1,49 @@
+Summary: Remember the cursor position of each file
+
+When a long document is opened again, TeXmacs starts at the beginning. The
+attached series (4 commits, git format-patch, Scheme only) makes TeXmacs
+remember the cursor position of every local file and restore it when the file
+is loaded again. It applies without fuzz to trunk and to the development
+branch, with "git am" or "patch -p1".
+
+ 1. prog: call former in the notify-cursor-moved overloads
+    (the bracket-highlighting overloads replaced the hook instead of
+    extending it)
+ 2. files: remember the cursor position of each file
+    (tm-files.scm, plus the preference "remember cursor position", on by
+    default, in Edit > Preferences > Other)
+ 3. dic: translate "remember cursor position"
+    (all 23 languages and english-new.scm, each file in its own encoding)
+ 4. check: add regression tests for remembering cursor positions
+    (regtest-cursor-memory, 13 checks, run by run-all-tests)
+
+Positions are stored relative to the document body in
+$TEXMACS_HOME_PATH/system/cursor-positions.scm (at most 300 files). The file
+is written 3 s after the last movement and on exit. Only local named files are
+recorded. When a file is loaded from disk, the saved path is validated
+against the document; if the file changed elsewhere, the cursor goes to the
+start of the deepest subtree that still exists. Already open buffers,
+background loads and autosave recovery are left alone.
+
+Risks considered: stale paths, a corrupt state file, recording the start of
+the document before the restore, quitting before the delayed write, private
+buffers, the bracket-highlighting overloads hiding the hook, Guile 1.8 vs 3,
+and conflicts between development and trunk. The pull request lists how each
+one is handled and tested.
+
+Testing:
+  - end-to-end script with 13 scenarios: 13/13 on trunk (svn_mirror 148ed74,
+    CMake, embedded Guile 1.8, Qt5) and 13/13 on TeXmacs 2.1.4 (Guile 3.0.11);
+  - run-all-tests on trunk with and without the series: identical except for
+    the 13 new checks (both stop at the pre-existing "image / simple link"
+    failure);
+  - manual checks: the view follows the restored cursor in a 1,000-paragraph
+    document, the preference is shown in Other preferences, and bracket
+    selection is unchanged.
+
+Test script, results, screenshots:
+  https://github.com/GliAcopo/texmacs-remember-cursor/tree/main/upstream
+The same series as a GitHub pull request (against development):
+  <!--PR-->
+
+This work was done with the help of Claude Opus 5.5.

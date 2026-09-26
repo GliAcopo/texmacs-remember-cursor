@@ -1,0 +1,17 @@
+# TeXmacs 2.1.4 (Ubuntu 26.04 package 1:2.1.4+ds-3, Guile 3.0.11), progs patched with the same series
+# (the local 2.1.4 package also carries the typing-performance series of PR #112: C++ caches and two Scheme predicates, unrelated to this patch)
+PASS  position saved 3 s after cursor movement
+PASS  restored when opened from the command line
+PASS  restored when opened with load-buffer
+PASS  position saved when quitting at once
+PASS  switching to an open buffer keeps its cursor
+PASS  scratch buffers are not recorded
+PASS  preference off: nothing restored
+PASS  preference off: nothing recorded
+PASS  shortened paragraph: start of the paragraph
+PASS  truncated file: start of the document
+PASS  corrupt state file is ignored
+PASS  recorded with bracket highlighting on
+PASS  regtest-cursor-memory
+
+All tests passed.
