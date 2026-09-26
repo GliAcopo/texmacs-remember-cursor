@@ -44,6 +44,6 @@ Testing:
 Test script, results, screenshots:
   https://github.com/GliAcopo/texmacs-remember-cursor/tree/main/upstream
 The same series as a GitHub pull request (against development):
-  <!--PR-->
+  https://github.com/texmacs/texmacs/pull/113
 
 This work was done with the help of Claude Opus 5.5.

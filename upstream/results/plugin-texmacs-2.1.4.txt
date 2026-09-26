@@ -1,0 +1,14 @@
+# Stand-alone plugin (../remember-cursor) on unpatched TeXmacs 2.1.4 (Guile 3.0.11)
+# PLUGIN_DIR=../remember-cursor ./test-cursor-memory.sh; the preference and regtest checks exist only in the patch
+PASS  position saved 3 s after cursor movement
+PASS  restored when opened from the command line
+PASS  restored when opened with load-buffer
+PASS  position saved when quitting at once
+PASS  switching to an open buffer keeps its cursor
+PASS  scratch buffers are not recorded
+PASS  shortened paragraph: start of the paragraph
+PASS  truncated file: start of the document
+PASS  corrupt state file is ignored
+PASS  recorded with bracket highlighting on
+
+All tests passed.

@@ -4,8 +4,8 @@ The same feature as the plugin in this repository, proposed for inclusion in
 GNU TeXmacs itself. It is written as a patch series against the `development`
 branch and also applies to trunk.
 
-- Pull request: <!--PR-->
-- Savannah patch: <!--SAVANNAH-->
+- Pull request: https://github.com/texmacs/texmacs/pull/113
+- Savannah patch: (to be submitted)
 - Description of the changes, risks and tests: [pull-request.md](pull-request.md)
 
 ## Contents
@@ -16,6 +16,7 @@ branch and also applies to trunk.
 | `test-cursor-memory.sh` | end-to-end test script (13 scenarios) that drives a real TeXmacs |
 | `results/trunk.txt` | results on trunk (`svn_mirror` 148ed74, embedded Guile 1.8) |
 | `results/texmacs-2.1.4.txt` | results on TeXmacs 2.1.4 (Guile 3.0.11) |
+| `results/plugin-texmacs-2.1.4.txt` | results of the stand-alone plugin on unpatched TeXmacs 2.1.4 |
 | `results/run-all-tests-trunk-*.txt` | `run-all-tests` output on trunk, with and without the series |
 | `screenshots/` | the restored view in a 1,000-paragraph document, and the new preference |
 

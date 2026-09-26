@@ -8,13 +8,22 @@
 # TEXMACS_HOME_PATH and drives it with "-x" scripts; the editor movement
 # commands (go-down, go-right) go through the same notify-cursor-moved hook
 # as the keyboard. A graphical session (X11 or Wayland) is needed.
+#
+# To test the stand-alone plugin on an unpatched TeXmacs instead, set
+# PLUGIN_DIR to its directory: it is linked into every test home, the state
+# file becomes remember-cursor.scm, and the checks of the preference and of
+# regtest-cursor-memory (which only exist in the patch) are skipped.
 set -uo pipefail
 
 tm="${1:?usage: $0 <texmacs launcher>}"
 work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 export TEXMACS_HOME_PATH="$work/home"
-state="$TEXMACS_HOME_PATH/system/cursor-positions.scm"
+plugin="${PLUGIN_DIR:-}"
+if [ -n "$plugin" ]; then state="$TEXMACS_HOME_PATH/system/remember-cursor.scm"
+else state="$TEXMACS_HOME_PATH/system/cursor-positions.scm"; fi
+# user plugins are initialized about 1 s after start-up: let that happen first
+start_idle=1000; [ -n "$plugin" ] && start_idle=3000
 doc="$work/doc.tm"
 other="$work/other.tm"
 failures=0
@@ -31,14 +40,14 @@ make_doc() { # make_doc <file> <paragraphs> [short paragraph]
 }
 
 run() { # run <scheme body> [file]: prints the lines tagged with OUT
-  printf '(delayed (:idle 1000) %s (quit-TeXmacs))\n' "$1" >| "$work/script.scm"
+  printf '(delayed (:idle %s) %s (quit-TeXmacs))\n' "$start_idle" "$1" >| "$work/script.scm"
   timeout 180 "$tm" -x "(load \"$work/script.scm\")" ${2:+"$2"} 2>&1 |
     sed -n 's/^OUT //p'
 }
 
 run_wait() { # like run, but quits only after 6 s without activity
-  printf '(delayed (:idle 1000) %s (delayed (:idle 6000) (quit-TeXmacs)))\n' \
-    "$1" >| "$work/script.scm"
+  printf '(delayed (:idle %s) %s (delayed (:idle 6000) (quit-TeXmacs)))\n' \
+    "$start_idle" "$1" >| "$work/script.scm"
   timeout 180 "$tm" -x "(load \"$work/script.scm\")" ${2:+"$2"} 2>&1 |
     sed -n 's/^OUT //p'
 }
@@ -60,6 +69,10 @@ in_session_saved="(with e (and (url-exists? \"$state\") (assoc \"$doc\" (load-ob
 
 reset_home() { # fresh home; the first start shows the welcome page, skip it
   rm -rf "$TEXMACS_HOME_PATH"; mkdir -p "$TEXMACS_HOME_PATH"
+  if [ -n "$plugin" ]; then
+    mkdir -p "$TEXMACS_HOME_PATH/plugins"
+    ln -s "$plugin" "$TEXMACS_HOME_PATH/plugins/remember-cursor"
+  fi
   run "(noop)" >/dev/null
 }
 cursor='(display* "OUT " (cursor-path) "\n")'
@@ -94,6 +107,7 @@ run "(new-document) (go-down) (delayed (:idle 5000) (noop))" >/dev/null
 check "scratch buffers are not recorded" "no state" \
   "$([ -s "$state" ] && cat "$state" || echo "no state")"
 
+if [ -z "$plugin" ]; then
 # 7-8. With the preference off, nothing is restored or recorded.
 reset_home; make_doc "$doc" 50
 run "$move (delayed (:idle 5000) (noop))" "$doc" >/dev/null
@@ -102,8 +116,11 @@ check "preference off: nothing restored" "(1 0 0)" "$(run "$cursor" "$doc")"
 run "(go-down) (go-down) (go-down) (go-down) (go-down) (go-down)" "$doc" >/dev/null
 check "preference off: nothing recorded" "(3 2)" "$(saved)"
 run '(set-preference "remember cursor position" "on")' >/dev/null
+fi
 
 # 9. A paragraph shortened outside TeXmacs: go to the start of the paragraph.
+reset_home; make_doc "$doc" 50
+run "$move" "$doc" >/dev/null
 make_doc "$doc" 50 4
 check "shortened paragraph: start of the paragraph" "(1 3 0)" \
   "$(run "$cursor" "$doc")"
@@ -124,10 +141,12 @@ run '(set-preference "prog:highlight brackets" "on")' >/dev/null
 check "recorded with bracket highlighting on" "(3 2)" \
   "$(run_wait "(import-from (prog prog-edit) (prog scheme-edit)) $move (delayed (:idle 4000) $in_session_saved)" "$doc")"
 
+if [ -z "$plugin" ]; then
 # 13. The regression tests of the patch.
 check "regtest-cursor-memory" "ok" \
   "$(timeout 180 "$tm" -x '(begin (catch #t (lambda () (run-all-tests)) (lambda args #f)) (quit-TeXmacs))' 2>&1 |
      sed -n 's/^Test suite of cursor-memory: //p')"
+fi
 
 printf '\n%s\n' "$([ "$failures" = 0 ] && echo "All tests passed." || echo "$failures test(s) failed.")"
 exit $((failures > 0))
