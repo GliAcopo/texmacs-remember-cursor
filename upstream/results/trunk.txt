@@ -1,5 +1,5 @@
 # TeXmacs trunk, svn_mirror 148ed74 ("add widgets for using LanguageTool"), CMake build, embedded Guile 1.8, Qt5 (offscreen)
-# patched with texmacs-remember-cursor-position.patch (6 commits, incl. 10e6dcb and 5faf3c6); ./test-cursor-memory.sh
+# patched with texmacs-remember-cursor-position.patch (6 commits, incl. 7e82a81 and f12bcf9); ./test-cursor-memory.sh
 PASS  nothing written on cursor movement
 PASS  position saved with the buffer
 PASS  restored when opened from the command line

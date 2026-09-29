@@ -708,7 +708,7 @@ index 0000000..f1d87ae
 2.53.0
 
 
-From 10e6dcb2521980a7083fdb94457640b590384dfa Mon Sep 17 00:00:00 2001
+From 7e82a819a9e5c00c169d210e2e1a1ce86fb57787 Mon Sep 17 00:00:00 2001
 From: Massimiliano Gubinelli <m.gubinelli@gmail.com>
 Date: Mon, 28 Sep 2026 21:56:30 +0200
 Subject: [PATCH 5/6] files: restore the cursor by following the saved path
@@ -724,8 +724,6 @@ as it goes through accessible children (tree-accessible-child?), clamps
 string offsets, and where the path stops goes to the start of the
 nearest accessible child (path-start). It replaces cursor-memory-valid?
 and cursor-memory-subtree; the regression tests are updated accordingly.
-
-Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ---
  .../progs/texmacs/texmacs/tm-files-test.scm   | 52 ++++++++-----------
  TeXmacs/progs/texmacs/texmacs/tm-files.scm    | 51 +++++++++++-------
@@ -870,7 +868,7 @@ index 28d07bf..359d605 100644
 2.53.0
 
 
-From 5faf3c62c73de01485c50bc86c8136b1ad26bc37 Mon Sep 17 00:00:00 2001
+From f12bcf982f79fd27df87a1f78b4e074eba9c0382 Mon Sep 17 00:00:00 2001
 From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
 Date: Tue, 29 Sep 2026 13:04:45 +0200
 Subject: [PATCH 6/6] files: record the cursor position only when a buffer is
