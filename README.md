@@ -5,9 +5,12 @@ restores it when the file is opened again.
 
 Tested with TeXmacs 2.1.4 (Guile 3).
 
-The same feature has been proposed for TeXmacs itself:
-[texmacs/texmacs#113](https://github.com/texmacs/texmacs/pull/113). The patch
-series, its tests and their results are in [upstream/](upstream/).
+**The feature will now be included in TeXmacs natively**
+([texmacs/texmacs#113](https://github.com/texmacs/texmacs/pull/113), with a
+preference in Edit > Preferences > Other). Once you use a TeXmacs version
+that has it, remove this plugin. Until then, the plugin gives the same
+feature to existing installations. The patch series, its tests and their
+results are in [upstream/](upstream/).
 
 ## Installation
 
