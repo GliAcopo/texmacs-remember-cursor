@@ -5,9 +5,9 @@
 #
 # TEXMACS_PATH (and, for a build with the embedded Guile, GUILE_LOAD_PATH)
 # must point at the patched TeXmacs. Every scenario runs TeXmacs with a fresh
-# TEXMACS_HOME_PATH and drives it with "-x" scripts; the editor movement
-# commands (go-down, go-right) go through the same notify-cursor-moved hook
-# as the keyboard. A graphical session (X11 or Wayland) is needed.
+# TEXMACS_HOME_PATH and drives it with "-x" scripts. The position is
+# recorded when a buffer is saved, auto-saved or closed, and when TeXmacs
+# quits. A graphical session (X11 or Wayland) is needed.
 #
 # To test the stand-alone plugin on an unpatched TeXmacs instead, set
 # PLUGIN_DIR to its directory: it is linked into every test home, the state
@@ -58,9 +58,9 @@ check() { # check <name> <expected> <actual>
        failures=$((failures + 1)); fi
 }
 
-saved() { # saved position of doc.tm in the state file, or "none"
+saved() { # saved position of a file (default doc.tm) in the state file
   [ -f "$state" ] || { echo none; return; }
-  timeout 180 "$tm" -x "(begin (with e (assoc \"$doc\" (load-object \"$state\")) (display* \"OUT \" (if e (cddr e) \"none\") \"\\n\")) (quit-TeXmacs))" 2>&1 |
+  timeout 180 "$tm" -x "(begin (with e (assoc \"${1:-$doc}\" (load-object \"$state\")) (display* \"OUT \" (if e (cddr e) \"none\") \"\\n\")) (quit-TeXmacs))" 2>&1 |
     sed -n 's/^OUT //p'
 }
 
@@ -77,12 +77,17 @@ reset_home() { # fresh home; the first start shows the welcome page, skip it
 }
 cursor='(display* "OUT " (cursor-path) "\n")'
 move='(go-down) (go-down) (go-down) (go-right) (go-right)'
+# scripted edits do not mark the buffer as modified: pretend they did
+modified='(buffer-pretend-modified (current-buffer))'
 
-# 1. Moving the cursor records the position; it is written to disk 3 s after
-#    the movement, while TeXmacs is still running.
+# 1. Moving the cursor alone writes nothing; saving the buffer records the
+#    position, while TeXmacs is still running.
 reset_home; make_doc "$doc" 50
-check "position saved 3 s after cursor movement" "(3 2)" \
+check "nothing written on cursor movement" "none" \
   "$(run_wait "$move (delayed (:idle 4000) $in_session_saved)" "$doc")"
+reset_home
+check "position saved with the buffer" "(3 2)" \
+  "$(run "$move $modified (save-buffer) $in_session_saved" "$doc")"
 
 # 2. Opening the file from the command line restores it.
 check "restored when opened from the command line" "(1 3 2)" \
@@ -118,31 +123,48 @@ check "preference off: nothing recorded" "(3 2)" "$(saved)"
 run '(set-preference "remember cursor position" "on")' >/dev/null
 fi
 
-# 9. A paragraph shortened outside TeXmacs: go to the start of the paragraph.
+# 9. A paragraph shortened outside TeXmacs: end of what is left of it.
 reset_home; make_doc "$doc" 50
 run "$move" "$doc" >/dev/null
 make_doc "$doc" 50 4
-check "shortened paragraph: start of the paragraph" "(1 3 0)" \
+check "shortened paragraph: end of what is left" "(1 3 1)" \
   "$(run "$cursor" "$doc")"
 
-# 10. A file truncated outside TeXmacs: stay at the start, no error.
-run "$move (delayed (:idle 5000) (noop))" "$doc" >/dev/null
+# 10. A file truncated outside TeXmacs: start of the last paragraph, no error.
+run "$move" "$doc" >/dev/null
 make_doc "$doc" 2
-check "truncated file: start of the document" "(1 0 0)" \
+check "truncated file: last remaining paragraph" "(1 1 0)" \
   "$(run "$cursor" "$doc")"
 
 # 11. A corrupt state file is ignored.
 printf '(("%s" oops' "$doc" >| "$state"
 check "corrupt state file is ignored" "(1 0 0)" "$(run "$cursor" "$doc")"
 
-# 12. Still recorded when bracket highlighting (prog modes) is enabled.
+# 12. Closing a buffer records its position.
+reset_home; make_doc "$doc" 50; make_doc "$other" 5
+check "position saved when the buffer is closed" "(3 2)" \
+  "$(run "$move (load-buffer (system->url \"$other\")) (buffer-close (system->url \"$doc\")) $in_session_saved" "$doc")"
+
+# 13. Auto-saving a buffer records its position.
 reset_home; make_doc "$doc" 50
-run '(set-preference "prog:highlight brackets" "on")' >/dev/null
-check "recorded with bracket highlighting on" "(3 2)" \
-  "$(run_wait "(import-from (prog prog-edit) (prog scheme-edit)) $move (delayed (:idle 4000) $in_session_saved)" "$doc")"
+check "position saved with the auto-save file" "(3 2)" \
+  "$(run "$move $modified (autosave-buffer (current-buffer)) $in_session_saved" "$doc")"
+rm -f "$doc~"
+
+# 14. Two instances at the same time keep each other's positions.
+reset_home; make_doc "$doc" 50; make_doc "$other" 5
+printf '(delayed (:idle %s) %s (delayed (:pause 15000) (quit-TeXmacs)))\n' \
+  "$start_idle" "$move" >| "$work/script-a.scm"
+timeout 180 "$tm" -x "(load \"$work/script-a.scm\")" "$doc" >/dev/null 2>&1 &
+sleep 2
+# (the second instance may show the welcome page: open the file explicitly)
+run_wait "(load-buffer (system->url \"$other\")) (delayed (:idle 500) (go-down) (go-right))" >/dev/null
+wait
+check "two instances: first file kept" "(3 2)" "$(saved)"
+check "two instances: second file kept" "(1 1)" "$(saved "$other")"
 
 if [ -z "$plugin" ]; then
-# 13. The regression tests of the patch.
+# 15. The regression tests of the patch.
 check "regtest-cursor-memory" "ok" \
   "$(timeout 180 "$tm" -x '(begin (catch #t (lambda () (run-all-tests)) (lambda args #f)) (quit-TeXmacs))' 2>&1 |
      sed -n 's/^Test suite of cursor-memory: //p')"

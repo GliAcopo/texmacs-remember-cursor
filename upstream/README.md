@@ -12,8 +12,8 @@ branch and also applies to trunk.
 
 | File | What it is |
 |---|---|
-| `texmacs-remember-cursor-position.patch` | the 4 commits as one `git format-patch` file (`git am` or `patch -p1`) |
-| `test-cursor-memory.sh` | end-to-end test script (13 scenarios) that drives a real TeXmacs |
+| `texmacs-remember-cursor-position.patch` | the 6 commits as one `git format-patch` file (`git am` or `patch -p1`) |
+| `test-cursor-memory.sh` | end-to-end test script (17 checks) that drives a real TeXmacs |
 | `results/trunk.txt` | results on trunk (`svn_mirror` 148ed74, embedded Guile 1.8) |
 | `results/texmacs-2.1.4.txt` | results on TeXmacs 2.1.4 (Guile 3.0.11) |
 | `results/plugin-texmacs-2.1.4.txt` | results of the stand-alone plugin on unpatched TeXmacs 2.1.4 |

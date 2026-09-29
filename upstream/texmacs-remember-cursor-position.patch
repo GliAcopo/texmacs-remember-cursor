@@ -1,7 +1,7 @@
 From 57fa301c1e27ff41b92ee6562368fe9df8b528c5 Mon Sep 17 00:00:00 2001
 From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 15:55:16 +0200
-Subject: [PATCH 1/4] prog: call former in the notify-cursor-moved overloads
+Subject: [PATCH 1/6] prog: call former in the notify-cursor-moved overloads
 
 The overloads used for bracket highlighting replaced notify-cursor-moved
 instead of extending it, so that no other code could react to cursor
@@ -101,7 +101,7 @@ index 4616436..1d966ed 100644
 From 65c65b25b2bd51fff1441c67ad062dbed6dc9ac1 Mon Sep 17 00:00:00 2001
 From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 15:46:27 +0200
-Subject: [PATCH 2/4] files: remember the cursor position of each file
+Subject: [PATCH 2/6] files: remember the cursor position of each file
 
 Save the cursor position of every local file and restore it when the file
 is loaded again from disk. Positions are kept in
@@ -283,7 +283,7 @@ index 7e1ed81..28d07bf 100644
 From 8e459542bdadd01af479cacce32787cc4f5ebb1b Mon Sep 17 00:00:00 2001
 From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 15:46:27 +0200
-Subject: [PATCH 3/4] dic: translate "remember cursor position"
+Subject: [PATCH 3/6] dic: translate "remember cursor position"
 
 ---
  TeXmacs/langs/natural/dic/english-bulgarian.scm  | 1 +
@@ -614,7 +614,7 @@ index 652007c..226dd6a 100644
 From 08420be8143beedc177172e7fdf7fb2dc2b41b2e Mon Sep 17 00:00:00 2001
 From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
 Date: Sat, 26 Sep 2026 15:46:27 +0200
-Subject: [PATCH 4/4] check: add regression tests for remembering cursor
+Subject: [PATCH 4/6] check: add regression tests for remembering cursor
  positions
 
 Test the validation of saved cursor paths and the fallback for outdated
@@ -704,6 +704,331 @@ index 0000000..f1d87ae
 +              (regtest-cursor-memory-subtree))))
 +    (display* "Total: " (object->string n) " tests.\n")
 +    (display "Test suite of cursor-memory: ok\n")))
+-- 
+2.53.0
+
+
+From 10e6dcb2521980a7083fdb94457640b590384dfa Mon Sep 17 00:00:00 2001
+From: Massimiliano Gubinelli <m.gubinelli@gmail.com>
+Date: Mon, 28 Sep 2026 21:56:30 +0200
+Subject: [PATCH 5/6] files: restore the cursor by following the saved path
+ top-down
+
+The saved path was only checked for its shape: after a file was changed
+outside TeXmacs it could lead into material that is not accessible, for
+instance the variable name of a with, where the next keystroke silently
+edits the markup ("font-series" became "foZnt-series").
+
+cursor-memory-target now follows the saved path from the root as long
+as it goes through accessible children (tree-accessible-child?), clamps
+string offsets, and where the path stops goes to the start of the
+nearest accessible child (path-start). It replaces cursor-memory-valid?
+and cursor-memory-subtree; the regression tests are updated accordingly.
+
+Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
+---
+ .../progs/texmacs/texmacs/tm-files-test.scm   | 52 ++++++++-----------
+ TeXmacs/progs/texmacs/texmacs/tm-files.scm    | 51 +++++++++++-------
+ 2 files changed, 53 insertions(+), 50 deletions(-)
+
+diff --git a/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm b/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm
+index f1d87ae..6fb1447 100644
+--- a/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm
++++ b/TeXmacs/progs/texmacs/texmacs/tm-files-test.scm
+@@ -14,40 +14,32 @@
+   (:use (texmacs texmacs tm-files)))
+ 
+ (define (test-doc)
+-  (stree->tree '(document "abc" (strong "de"))))
++  (stree->tree '(document "abc" (strong "de")
++                          (with "font-series" "bold" "xyz")
++                          (folded "Sum" "hidden"))))
+ 
+-(define (valid-in-test-doc p)
+-  (cursor-memory-valid? (test-doc) p))
++(define (target-in-test-doc p)
++  (cursor-memory-target (test-doc) p))
+ 
+-(define (subtree-in-test-doc p)
+-  (with t (cursor-memory-subtree (test-doc) p)
+-    (and t (tree->stree t))))
+-
+-(define (regtest-cursor-memory-valid)
+-  (regression-test-group
+-   "valid cursor paths" "cursor-memory-valid"
+-   valid-in-test-doc :none
+-   (test "inside a string" '(0 2) #t)
+-   (test "end of a string" '(0 3) #t)
+-   (test "beyond a string" '(0 4) #f)
+-   (test "inside a nested string" '(1 0 1) #t)
+-   (test "after a compound tree" '(1 1) #t)
+-   (test "invalid compound position" '(1 2) #f)
+-   (test "missing paragraph" '(2 0) #f)
+-   (test "negative index" '(-1 0) #f)
+-   (test "empty path" '() #f)))
+-
+-(define (regtest-cursor-memory-subtree)
++(define (regtest-cursor-memory-target)
+   (regression-test-group
+-   "subtrees along outdated paths" "cursor-memory-subtree"
+-   subtree-in-test-doc :none
+-   (test "outdated string position" '(0 9) "abc")
+-   (test "outdated nested position" '(1 0 7) "de")
+-   (test "missing paragraph" '(5 0) #f)
+-   (test "empty path" '() #f)))
++   "restoring saved cursor paths" "cursor-memory-target"
++   target-in-test-doc :none
++   (test "inside a string" '(0 2) '(0 2))
++   (test "inside a nested string" '(1 0 1) '(1 0 1))
++   (test "after a compound tree" '(1 1) '(1 1))
++   (test "inside the body of a with" '(2 2 1) '(2 2 1))
++   (test "shortened string" '(0 9) '(0 3))
++   (test "shortened nested string" '(1 0 7) '(1 0 2))
++   (test "string replaced a compound" '(1 0 1 4) '(1 0 0))
++   (test "attribute of a with" '(2 0 2) '(2 2 0))
++   (test "hidden body of a fold" '(3 1 2) '(3 0 0))
++   (test "missing child" '(1 5) '(1 0 0))
++   (test "missing paragraph" '(5 0) '(3 0))
++   (test "negative index" '(-1 0) '(0 0))
++   (test "empty path" '() '(0 0))))
+ 
+ (tm-define (regtest-cursor-memory)
+-  (let ((n (+ (regtest-cursor-memory-valid)
+-              (regtest-cursor-memory-subtree))))
++  (let ((n (regtest-cursor-memory-target)))
+     (display* "Total: " (object->string n) " tests.\n")
+     (display "Test suite of cursor-memory: ok\n")))
+diff --git a/TeXmacs/progs/texmacs/texmacs/tm-files.scm b/TeXmacs/progs/texmacs/texmacs/tm-files.scm
+index 28d07bf..359d605 100644
+--- a/TeXmacs/progs/texmacs/texmacs/tm-files.scm
++++ b/TeXmacs/progs/texmacs/texmacs/tm-files.scm
+@@ -530,32 +530,43 @@
+     (lambda () (cursor-memory-record) (cursor-memory-save))
+     noop))
+ 
+-(tm-define (cursor-memory-valid? t p)
+-  (:synopsis "Is @p a valid cursor path inside the tree @t?")
+-  (cond ((null? p) #f)
+-        ((tree-atomic? t)
+-         (and (null? (cdr p)) (<= 0 (car p) (string-length (tree->string t)))))
+-        ((null? (cdr p)) (in? (car p) '(0 1)))
+-        ((< -1 (car p) (tree-arity t))
+-         (cursor-memory-valid? (tree-ref t (car p)) (cdr p)))
+-        (else #f)))
+-
+-(tm-define (cursor-memory-subtree t p)
+-  (:synopsis "Deepest subtree of @t along the (possibly outdated) path @p")
+-  (and (pair? p) (tree-compound? t) (< -1 (car p) (tree-arity t))
+-       (with u (tree-ref t (car p))
+-         (or (cursor-memory-subtree u (cdr p)) u))))
++(define (cursor-memory-nearest u i)
++  ;; accessible child of @u at or before the index @i, else the first one
++  (let* ((l (list-filter (.. 0 (tree-arity u))
++                         (lambda (j) (tree-accessible-child? u j))))
++         (b (list-filter l (lambda (j) (<= j i)))))
++    (cond ((nnull? b) (cAr b))
++          ((nnull? l) (car l))
++          (else #f))))
++
++(tm-define (cursor-memory-target t p)
++  (:synopsis "Closest accessible cursor path inside @t to the saved path @p")
++  ;; follow @p top-down as long as it leads through accessible children;
++  ;; where it stops, go to the start of the nearest accessible child
++  (let walk ((u t) (q p) (acc '()))
++    (cond ((null? q) (path-start t (reverse acc)))
++          ((tree-atomic? u)
++           (with n (string-length (tree->string u))
++             (if (null? (cdr q))
++                 (reverse (cons (max 0 (min (car q) n)) acc))
++                 (path-start t (reverse acc)))))
++          ((and (null? (cdr q)) (in? (car q) '(0 1)) (nnull? acc))
++           (reverse (cons (car q) acc)))
++          ((and (< -1 (car q) (tree-arity u))
++                (tree-accessible-child? u (car q)))
++           (walk (tree-ref u (car q)) (cdr q) (cons (car q) acc)))
++          ((cursor-memory-nearest u (car q))
++           => (lambda (j) (walk (tree-ref u j) '() (cons j acc))))
++          (else (path-start t (reverse acc))))))
+ 
+ (define (cursor-memory-restore name)
+   (and-with e (ahash-ref (cursor-memory) (url->system name))
+     (when (and (current-buffer)
+                (== (url->system (current-buffer)) (url->system name)))
+       (let* ((body (buffer-tree))
+-             (p (cdr e)))
+-        (cond ((cursor-memory-valid? body p)
+-               (go-to (append (tree->path body) p)))
+-              ((cursor-memory-subtree body p)
+-               => (lambda (t) (tree-go-to t :start))))))))
++             (q (cursor-memory-target body (cdr e))))
++        (when (pair? q)
++          (go-to (append (tree->path body) q)))))))
+ 
+ (define (cursor-memory-notify-open name opts)
+   ;; restore before returning to the event loop, so that no cursor movement
+-- 
+2.53.0
+
+
+From 5faf3c62c73de01485c50bc86c8136b1ad26bc37 Mon Sep 17 00:00:00 2001
+From: Gli_acopo <82150202+GliAcopo@users.noreply.github.com>
+Date: Tue, 29 Sep 2026 13:04:45 +0200
+Subject: [PATCH 6/6] files: record the cursor position only when a buffer is
+ saved or closed
+
+The position was recorded in notify-cursor-moved, which cost about 40 us
+on every cursor movement, silently stopped working as soon as an overload
+of notify-cursor-moved did not call former, and needed a delayed write,
+a "modified" flag and an extra write at exit. Each instance also rewrote
+the state file from its own table, losing the positions saved by other
+instances in the meantime.
+
+The position of a buffer is now recorded only when it is needed later:
+when the buffer is saved (save-buffer-save), auto-saved (autosave-buffer),
+closed (an overload of buffer-close) and, for all open buffers, when
+TeXmacs quits (on-exit). The cursor of a buffer that is not current is
+read with with-buffer. At each of these moments the state file is read
+again, the entries of the recorded buffers are updated and the file is
+written back, so several instances no longer overwrite each other. There
+is no cached table any more: the file is also read when a file is opened.
+---
+ TeXmacs/progs/texmacs/texmacs/tm-files.scm | 87 +++++++++++-----------
+ 1 file changed, 44 insertions(+), 43 deletions(-)
+
+diff --git a/TeXmacs/progs/texmacs/texmacs/tm-files.scm b/TeXmacs/progs/texmacs/texmacs/tm-files.scm
+index 359d605..36c30db 100644
+--- a/TeXmacs/progs/texmacs/texmacs/tm-files.scm
++++ b/TeXmacs/progs/texmacs/texmacs/tm-files.scm
+@@ -172,6 +172,7 @@
+           (if (== (url-suffix name) "ts") (style-clear-cache))
+           (autosave-remove name)
+           (buffer-notify-recent name)
++          (cursor-memory-record name)
+           (set-message `(concat "Saved " ,vname) "Save file")
+           (save-buffer-post name opts)))))
+ 
+@@ -389,6 +390,7 @@
+             (else
+              (when (not (rescue-mode?))
+                (buffer-pretend-autosaved name)
++               (cursor-memory-record name)
+                (set-temporary-message `(concat "Auto-saved " ,vname)
+                                       "Auto-save file" 2500)))))))
+ 
+@@ -462,8 +464,6 @@
+ ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+ 
+ (define cursor-memory-max 300)
+-(define cursor-memory-table #f) ; file name -> (time . cursor path in body)
+-(define cursor-memory-modified? #f)
+ 
+ (define (cursor-memory-on?)
+   (get-boolean-preference "remember cursor position"))
+@@ -481,54 +481,55 @@
+   (and (pair? e) (string? (car e)) (pair? (cdr e)) (number? (cadr e))
+        (list? (cddr e)) (list-and (map integer? (cddr e)))))
+ 
+-(define (cursor-memory)
+-  (when (not cursor-memory-table)
+-    (set! cursor-memory-table (make-ahash-table))
+-    (with u (cursor-memory-file)
+-      (when (url-exists? u)
+-        (with l (catch #t (lambda () (load-object u)) (lambda args '()))
+-          (when (list? l)
+-            (for (e l)
+-              (when (cursor-memory-entry? e)
+-                (ahash-set! cursor-memory-table (car e) (cdr e)))))))))
+-  cursor-memory-table)
+-
+-(define (cursor-memory-save)
+-  (when cursor-memory-modified?
+-    (let* ((l (ahash-table->list (cursor-memory)))
+-           (s (sort l (lambda (a b) (> (cadr a) (cadr b)))))
+-           (r (if (> (length s) cursor-memory-max)
+-                  (sublist s 0 cursor-memory-max) s)))
+-      (set! cursor-memory-modified? #f)
+-      (catch #t (lambda () (save-object (cursor-memory-file) r)) noop))))
++(define (cursor-memory-read)
++  ;; table file name -> (time . cursor path in body), read from disk
++  (let ((t (make-ahash-table))
++        (u (cursor-memory-file)))
++    (when (url-exists? u)
++      (with l (catch #t (lambda () (load-object u)) (lambda args '()))
++        (when (list? l)
++          (for (e l)
++            (when (cursor-memory-entry? e)
++              (ahash-set! t (car e) (cdr e)))))))
++    t))
+ 
+ (define (cursor-memory-body-path)
+   (let* ((r (tree->path (buffer-tree)))
+          (c (cursor-path)))
+     (and r c (list-starts? c r) (list-tail c (length r)))))
+ 
+-(define (cursor-memory-record)
+-  (with name (current-buffer)
+-    (when (and (cursor-memory-on?) (cursor-memory-buffer? name))
+-      (and-with p (cursor-memory-body-path)
+-        (let* ((key (url->system name))
+-               (old (ahash-ref (cursor-memory) key)))
+-          (when (or (not old) (!= (cdr old) p))
+-            (ahash-set! (cursor-memory) key (cons (current-time) p))
+-            (when (not cursor-memory-modified?)
+-              (set! cursor-memory-modified? #t)
+-              (delayed
+-                (:idle 3000)
+-                (cursor-memory-save)))))))))
+-
+-(tm-define (notify-cursor-moved status)
+-  (former status)
+-  (cursor-memory-record))
++(define (cursor-memory-position name)
++  ;; file name and cursor path of the buffer @name, if it is to be recorded
++  (and (cursor-memory-buffer? name)
++       (with p (with-buffer name (cursor-memory-body-path))
++         (and (pair? p) (cons (url->system name) p)))))
++
++(define (cursor-memory-store names)
++  ;; the file is read again before it is updated, so that the positions
++  ;; saved in the meantime by other instances of TeXmacs are kept
++  (with l (list-filter (map cursor-memory-position names) identity)
++    (when (nnull? l)
++      (let* ((t (cursor-memory-read))
++             (now (current-time)))
++        (for (e l)
++          (ahash-set! t (car e) (cons now (cdr e))))
++        (let* ((s (sort (ahash-table->list t)
++                        (lambda (a b) (> (cadr a) (cadr b)))))
++               (r (if (> (length s) cursor-memory-max)
++                      (sublist s 0 cursor-memory-max) s)))
++          (save-object (cursor-memory-file) r))))))
++
++(define (cursor-memory-record . names)
++  ;; called when a buffer is saved, auto-saved or closed, and at exit
++  (when (cursor-memory-on?)
++    (catch #t (lambda () (cursor-memory-store names)) noop)))
++
++(tm-define (buffer-close name)
++  (cursor-memory-record name)
++  (former name))
+ 
+ (on-exit
+-  (catch #t
+-    (lambda () (cursor-memory-record) (cursor-memory-save))
+-    noop))
++  (apply cursor-memory-record (buffer-list)))
+ 
+ (define (cursor-memory-nearest u i)
+   ;; accessible child of @u at or before the index @i, else the first one
+@@ -560,7 +561,7 @@
+           (else (path-start t (reverse acc))))))
+ 
+ (define (cursor-memory-restore name)
+-  (and-with e (ahash-ref (cursor-memory) (url->system name))
++  (and-with e (ahash-ref (cursor-memory-read) (url->system name))
+     (when (and (current-buffer)
+                (== (url->system (current-buffer)) (url->system name)))
+       (let* ((body (buffer-tree))
 -- 
 2.53.0
 
