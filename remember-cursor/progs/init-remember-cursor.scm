@@ -172,12 +172,6 @@
                   ((remember-cursor-valid-subtree root p)
                    => (lambda (t) (tree-go-to t :start))))))))))
 
-(define (remember-cursor-at-start?)
-  (with p (remember-cursor-relative-path)
-    (or (not p)
-        (== (append (tree->path (buffer-tree)) p)
-            (tree->path (buffer-tree) :start)))))
-
 ;; Only buffers that did not exist before the call are restored: switching to
 ;; an already open buffer keeps its cursor.  When the autosave question is
 ;; asked, loading continues asynchronously and nothing is restored.  The
@@ -203,10 +197,12 @@
 (remember-cursor-load)
 
 ;; Buffers loaded before this plugin was initialized (e.g. from the command
-;; line, when plugin initialization is lazy): restore the current one only if
-;; its cursor is still at the start.
+;; line, when plugin initialization is lazy): restore the current one unless
+;; it was already edited.  They were opened a moment ago, so their cursor is
+;; still where TeXmacs put it, which is not always the start of the tree
+;; (e.g. it skips a leading hide-preamble).
 (remember-cursor-safe
   (with buffer (current-buffer)
     (when (and (remember-cursor-buffer? buffer)
-               (remember-cursor-at-start?))
+               (not (buffer-modified? buffer)))
       (remember-cursor-restore buffer))))
